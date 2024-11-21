@@ -50,41 +50,34 @@ docs = loader.load()
 print(f"문서의 페이지수: {len(docs)}")
 #print(docs[2].page_content)
 
-# 페이지마다 청크를 만들고, 각 청크 앞에 페이지 넘버를 추가하는 방식
+# 페이지마다 청크를 만들고, 각 청크 앞에 해당하는 페이지 넘버를 추가함
 def split_with_page_numbers(docs, chunk_size=500, chunk_overlap=50):
     split_documents = []
-    current_chunk = ""
-    current_page = 1
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+
+    # 문서 페이지마다 분할
     for doc in docs:
         page_content = doc.page_content
         page_number = doc.metadata['page']  # 페이지 넘버 가져오기
-        content_with_page_number = f"Page {page_number}: {page_content}"  # 페이지 넘버 추가
         
-        # content_with_page_number가 청크 사이즈를 초과하는지 확인하고 분할
-        if len(current_chunk) + len(content_with_page_number) > chunk_size:
-            # 기존 청크에 더 이상 페이지를 추가할 수 없으면, 청크를 분리
-            split_documents.append(current_chunk.strip())
-            current_chunk = content_with_page_number
-        else:
-            # 청크에 페이지 추가
-            current_chunk += content_with_page_number
+        # 페이지 내용을 청크 단위로 분할
+        split_page_content = text_splitter.split_text(page_content)
         
-        # 페이지가 끝날 때마다 청크를 나누는 처리를 할 수 있게 분할
-        if len(current_chunk) > chunk_size: 
-            split_documents.append(current_chunk.strip())
-            current_chunk = ""
-    
-    if current_chunk.strip():  # 마지막 남은 청크를 추가
-        split_documents.append(current_chunk.strip())
+        # 각 청크에 해당하는 페이지 넘버를 앞에 추가하여 저장
+        for chunk in split_page_content:
+            chunk_with_page_number = f"Page {page_number}: {chunk.strip()}"
+            split_documents.append(chunk_with_page_number)
     
     return split_documents
 
-# 문서 분할 (페이지 넘버 포함)
+# 페이지 넘버 포함하여 문서 분할
 split_documents_with_page_numbers = split_with_page_numbers(docs, chunk_size=500, chunk_overlap=50)
 
-# 분할된 청크의 수와 첫 번째 청크의 내용 확인
+# 분할된 청크의 수
 print(f"분할된 청크의 수: {len(split_documents_with_page_numbers)}")
-print(f"첫 번째 청크: {split_documents_with_page_numbers[1]}")
+
+for idx, chunk in enumerate(split_documents_with_page_numbers):
+    print(f"청크 {idx+1}: {chunk}\n")
 
 # 단계 3: 임베딩(Embedding) 생성
 embeddings = OpenAIEmbeddings()
@@ -93,4 +86,4 @@ embeddings = OpenAIEmbeddings()
 embeddings_list = embeddings.embed_documents(split_documents_with_page_numbers)
 
 # 임베딩이 잘 되었는지 첫번째 청크의 벡터값 확인용 출력
-print("첫 번째 청크 벡터:", embeddings_list[1])
+print("첫 번째 청크 벡터:", embeddings_list[0])

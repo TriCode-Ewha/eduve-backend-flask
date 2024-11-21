@@ -113,7 +113,7 @@ print("첫 번째 청크 벡터:", embeddings_list[0]) """
 contents = [doc["content"] for doc in split_documents_with_page_numbers]
 metadatas = [doc["metadata"] for doc in split_documents_with_page_numbers]
 
-""" vectorstore = FAISS.from_documents(documents=contents, embedding=embeddings, metadatas=metadatas)
+""" vectorstore = FAISS.from_texts(texts=contents, embedding=embeddings, metadatas=metadatas)
 
 # 벡터 데이터베이스 저장
 vectorstore.save_local("faiss_index")
@@ -126,5 +126,50 @@ for result in results:
     print(f"내용: {result.page_content}")
     print(f"페이지: {result.metadata['page']}")
     print()
+ """
 
-vectorstore.docstore._dict """
+# 벡터데이터베이스 기반 유사도검색 (혜진)
+from langchain_openai.embeddings import OpenAIEmbeddings
+from langchain_chroma import Chroma
+
+doc = ""
+
+# db 생성
+db = Chroma.from_documents(
+    documents=doc,
+    embedding = OpenAIEmbeddings(),
+    collection_name="eduve_db"
+)
+
+# 1
+# 쿼리 텍스트와 가장 유사한 문서들의 리스트 반환
+# k값에 검색 document 결과의 개수를 지정가능
+db.similarity_search("TF IDF 에 대하여 알려줘", k=2)
+# filter 사용 : 다른 파일에서 데이터 검색 가능
+db.similarity_search(
+    "TF IDF 에 대하여 알려줘", filter={"source": "data/nlp-keywords.txt"}, k=2
+)
+# filter 사용
+db.similarity_search(
+    "TF IDF 에 대하여 알려줘", filter={"source": "data/finance-keywords.txt"}, k=2
+)
+
+
+
+# 2
+# 벡터 저장소를 검색기(Retriever)로 변환
+retriever = db.as_retriever()
+retriever.invoke("Word2Vec 에 대하여 알려줘")
+
+# k: 반환할 문서 수
+# fetch_k : MMR 알고리즘에 전달할 문서 수(기본 값: 20)
+# lambda_mult: MMR 결과의 다양성 조절(0~1, 기본값: 0.5)
+retriever = db.as_retriever(
+    search_type="mmr", search_kwargs={"k": 6, "lambda_mult": 0.25, "fetch_k": 10}
+)
+retriever.invoke("Word2Vec 에 대하여 알려줘")
+# 필터 적용
+retriever = db.as_retriever(
+    search_kwargs={"filter": {"source": "data/finance-keywords.txt"}, "k": 2}
+)
+retriever.invoke("ESG 에 대하여 알려줘")

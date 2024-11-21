@@ -95,10 +95,10 @@ def split_with_page_numbers(docs, chunk_size=500, chunk_overlap=50):
 # 페이지 넘버 포함하여 문서 분할
 split_documents_with_page_numbers = split_with_page_numbers(docs, chunk_size=500, chunk_overlap=50)
 
-""" # 분할된 청크의 수
+# 분할된 청크의 수
 print(f"분할된 청크의 수: {len(split_documents_with_page_numbers)}")
 
-for idx, chunk in enumerate(split_documents_with_page_numbers):
+""" for idx, chunk in enumerate(split_documents_with_page_numbers):
     print(f"청크 {idx+1}: {chunk}\n") """
 
 # 단계 3: 임베딩(Embedding) 생성
@@ -113,22 +113,57 @@ print("첫 번째 청크 벡터:", embeddings_list[0]) """
 contents = [doc["content"] for doc in split_documents_with_page_numbers]
 metadatas = [doc["metadata"] for doc in split_documents_with_page_numbers]
 
-""" vectorstore = FAISS.from_texts(texts=contents, embedding=embeddings, metadatas=metadatas)
 
-# 벡터 데이터베이스 저장
-vectorstore.save_local("faiss_index")
-
-# 단계 5: 유사도 검색 및 메타데이터 출력
+""" # 단계 5: 유사도 검색 및 메타데이터 출력
 query = "양도소득세"
 results = vectorstore.similarity_search(query, k=3)
 
 for result in results:
     print(f"내용: {result.page_content}")
     print(f"페이지: {result.metadata['page']}")
-    print()
- """
+    print() """
 
-# 벡터데이터베이스 기반 유사도검색 (혜진)
+
+# Chroma로 데이터 저장 및 로드
+vectorstore = Chroma.from_texts(texts=contents, embedding=embeddings, metadatas=metadatas)
+
+# 모든 데이터 출력
+for doc in vectorstore.similarity_search("", k=len(contents)):
+    print(f"내용: {doc.page_content}")
+    print(f"메타데이터: {doc.metadata}")
+    print()
+
+# 유사도검색1
+docs1 = vectorstore.similarity_search("양도소득세", k=2)
+for doc in docs1:
+    print(f"페이지: {doc.metadata['page']}")
+    print(doc.page_content)
+    print("============================================================")
+
+# 유사도검색2
+retriever = vectorstore.as_retriever()
+docs2 = retriever.invoke("양도소득세")
+
+for doc in docs2:
+    print(f"페이지: {doc.metadata['page']}")
+    print(doc.page_content)
+    print("------------------------------------------------------------")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+""" # 벡터데이터베이스 기반 유사도검색 (혜진)
 from langchain_openai.embeddings import OpenAIEmbeddings
 from langchain_chroma import Chroma
 
@@ -172,4 +207,4 @@ retriever.invoke("Word2Vec 에 대하여 알려줘")
 retriever = db.as_retriever(
     search_kwargs={"filter": {"source": "data/finance-keywords.txt"}, "k": 2}
 )
-retriever.invoke("ESG 에 대하여 알려줘")
+retriever.invoke("ESG 에 대하여 알려줘") """

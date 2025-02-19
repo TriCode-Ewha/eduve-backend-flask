@@ -1,15 +1,142 @@
 from flask import Flask, jsonify, request
 import requests
 import openai
+import os
+import uuid
+from dotenv import load_dotenv
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import PyMuPDFLoader
+from langchain_openai import OpenAIEmbeddings
+from langchain_chroma import Chroma
+from langchain_community.vectorstores import Chroma
+
+from some_vectorstore import vectorstore  # 가상의 벡터 저장소
+from docx import Document
+from PIL import Image
+import pytesseract
+
 
 app = Flask(__name__)
 
 
+
 # OpenAI API 키 설정
-openai.api_key = ""  
 # api_key = "" 
 
+load_dotenv()  # .env 파일에서 환경 변수 로드
 
+app = Flask(__name__)
+embeddings = OpenAIEmbeddings(openai_api_key=openai.api_key)
+# ChromaDB 벡터 데이터베이스 로드 (디스크에 저장)
+# 디스크에 저장해놔야 이전에 저장한 데이터가 유지됨 -> API 호출할 때마다 데이터베이스가 초기화되서 이전에 저장한 데이터 검색 불가능
+vectorstore = Chroma(persist_directory="chroma_db", embedding_function=embeddings)
+
+
+
+
+# PDF 파일을 받아 임베딩하여 저장하는 API
+@app.route('/embed-pdf', methods=['POST'])
+def embed_pdf():
+    try:
+        # 파일이 없으면 400 ERROR
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+        
+        # 고유한 파일명을 생성(uuid.uuid4().hex)하여 data/디렉토리에 저장
+        file = request.files['file']
+        # 파일 확장자명 추출
+        file_ext = file.filename.split('.')[-1].lower()
+        filename = f"temp_{uuid.uuid4().hex}.pdf"
+        filepath = os.path.join("data", filename)
+        file.save(filepath)
+
+
+        processed_path = None
+        # 파일 변환 로직
+        if file_ext == 'pdf': # pdf 파일이면 그대로 진행행
+            processed_path = filepath
+        elif file_ext == 'docx': # docx
+            processed_path = filepath.replace('.docx', '.pdf')
+            convert_docx_to_pdf(filepath, processed_path)
+        elif file_ext in ['jpg', 'jpeg', 'png']: # 이미지
+            text = extract_text_from_image(filepath)
+        elif file_ext == 'txt': # txt
+            with open(filepath, 'r', encoding='utf-8') as file:
+                text = file.read()  # 텍스트 파일 내용 읽기
+        else:
+            return jsonify({"error": "Unsupported file format"}), 400
+
+
+        # PDF 로드 및 분할
+        docs = []
+        if processed_path:
+            loader = PyMuPDFLoader(processed_path)
+            docs = loader.load()
+            os.remove(processed_path)  # 변환된 PDF 삭제
+        elif text:
+            docs = [{"page_content": text, "metadata": {"page": 1}}]  # OCR 결과 저장
+
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+        split_documents = []
+
+        for doc in docs:
+            page_content = doc.page_content
+            page_number = doc.metadata['page']  #페이지 넘버
+            # 페이지 내용을 청크 단위로 분할
+            split_page_content = text_splitter.split_text(page_content)
+            # 각 청크에 페이지 번호를 추가하고 메타데이터 생성
+            for chunk in split_page_content:
+                split_documents.append({
+                    "content": chunk.strip(),
+                    "metadata": {"page": page_number}
+                })
+        
+        # 페이지 넘버 포함하여 문서 분할
+        contents = [doc["content"] for doc in split_documents]
+        metadatas = [doc["metadata"] for doc in split_documents]
+        
+        # 문서 임베딩 및 저장
+        vectorstore.add_texts(texts=contents, metadatas=metadatas)
+        vectorstore.persist()  # 데이터 저장 유지
+        os.remove(filepath)
+        
+        return jsonify({"message": "PDF successfully embedded"})
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+
+# 유사도 검색 API
+# '{"query": "금융 상품"}' 같이 입력
+''' 데이터 요청 이런식으로..
+{
+    "query": "금융 상품 추천"
+}
+'''
+@app.route('/search', methods=['POST'])
+def search():
+    try:
+        data = request.json
+        query = data.get("query", "")
+        
+        if not query:
+            return jsonify({"error": "No query provided"}), 400
+        
+        retriever = vectorstore.as_retriever()
+        docs = retriever.invoke(query)
+        
+        results = [{"page": doc.metadata["page"], "content": doc.page_content} for doc in docs]
+        
+        return jsonify({"results": results})
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+
+
+# chat_gpt 호츌 API
 @app.route('/chatgpt', methods=['POST'])
 def chatgpt():
     try:
@@ -30,10 +157,34 @@ def chatgpt():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+
+
+
+
+# docx -> pdf 변환
+def convert_docx_to_pdf(docx_path, pdf_path):
+    doc = Document(docx_path)
+    doc.save(pdf_path)
+
+
+# 이미지에서 텍스트 추출
+def extract_text_from_image(image_path):
+    image = Image.open(image_path)
+    text = pytesseract.image_to_string(image, lang="eng+kor")  # OCR 수행
+    return text
+
+
 
 if __name__ == '__main__':
+    os.makedirs("data", exist_ok=True)  # PDF 저장할 디렉토리 생성
+    os.makedirs("chroma_db", exist_ok=True)  # Chroma DB 저장할 디렉토리 생성
     app.run(debug=True, port=5000)
 
+
+
+
+'''
 
 from dotenv import load_dotenv
 load_dotenv()  # .env 파일에서 변수 로드
@@ -111,14 +262,12 @@ embeddings_list = embeddings.embed_documents(contents[0])
 vectorstore = Chroma.from_texts(texts=contents, embedding=embeddings, metadatas=metadatas)
 
 
-'''
 # 유사도검색1
 docs1 = vectorstore.similarity_search("양도소득세")
 for doc in docs1:
     print(f"페이지: {doc.metadata['page']}")
     print(doc.page_content)
     print("============================================================")
-'''
 
 
 # 유사도검색2
@@ -129,3 +278,5 @@ for doc in docs2:
     print(f"페이지: {doc.metadata['page']}")
     print(doc.page_content)
     print("------------------------------------------------------------")
+
+'''

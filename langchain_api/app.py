@@ -10,7 +10,6 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_community.vectorstores import Chroma
 
-from some_vectorstore import vectorstore  # 가상의 벡터 저장소
 from docx import Document
 from PIL import Image
 import pytesseract

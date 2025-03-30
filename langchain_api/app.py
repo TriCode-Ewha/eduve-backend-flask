@@ -20,7 +20,7 @@ app = Flask(__name__)
 
 
 # OpenAI API 키 설정
-# api_key = "" 
+api_key = openai.api_key = ""
 
 load_dotenv()  # .env 파일에서 환경 변수 로드
 
@@ -34,7 +34,7 @@ vectorstore = Chroma(persist_directory="chroma_db", embedding_function=embedding
 
 
 # PDF 파일을 받아 임베딩하여 저장하는 API
-@app.route('/embed-pdf', methods=['POST'])
+@app.route('/embedding', methods=['POST'])
 def embed_pdf():
     try:
         # 파일이 없으면 400 ERROR
@@ -156,6 +156,58 @@ def chatgpt():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+
+from sentence_transformers import SentenceTransformer
+import spacy
+from sentence_transformers.util import pytorch_cos_sim
+
+# 임베딩 모델 로드 (사용할 모델 변경 가능)
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
+
+@app.route('/extractTopic', methods=['POST'])
+def extract_topic():
+    data = request.get_json()
+    message = data.get("message", "")
+
+    # 토픽 추출 로직 (간단한 키워드 기반 예제)
+    topic = extract_main_topic(message)
+
+    return jsonify({"topic": topic})
+
+
+
+@app.route('/calculateSimilarity', methods=['POST'])
+def calculate_similarity():
+    data = request.get_json()
+    topic1 = data.get("topic1", "")
+    topic2 = data.get("topic2", "")
+
+    # 임베딩 벡터 변환
+    embedding1 = model.encode(topic1, convert_to_tensor=True)
+    embedding2 = model.encode(topic2, convert_to_tensor=True)
+
+    # 코사인 유사도 계산
+    similarity_score = pytorch_cos_sim(embedding1, embedding2).item()
+
+    return jsonify({"similarity": similarity_score})
+
+
+
+def extract_main_topic(text):
+    """
+    간단한 토픽 추출 (명사 기반, 필요하면 더 고도화 가능)
+    """
+    import spacy
+    nlp = spacy.load("en_core_web_sm")  # 영어 모델 (한국어 사용시 ko_core_news_sm 사용)
+    doc = nlp(text)
+    
+    # 명사만 추출하여 대표 키워드 선정
+    nouns = [token.text for token in doc if token.pos_ in ["NOUN", "PROPN"]]
+    
+    return nouns[0] if nouns else text  # 명사가 없으면 원문 반환
     
 
 

@@ -19,10 +19,8 @@ app = Flask(__name__)
 
 
 
-# OpenAI API 키 설정
-api_key = openai.api_key = ""
-
 load_dotenv()  # .env 파일에서 환경 변수 로드
+api_key = openai.api_key = os.getenv("OPENAI_API_KEY")
 
 app = Flask(__name__)
 embeddings = OpenAIEmbeddings(openai_api_key=openai.api_key)

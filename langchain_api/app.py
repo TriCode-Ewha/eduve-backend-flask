@@ -1,3 +1,4 @@
+import traceback
 from flask import Flask, jsonify, request
 import requests
 import openai
@@ -56,17 +57,24 @@ def embedding():
         file = request.files['file']
         # 파일 확장자명 추출
         file_ext = file.filename.split('.')[-1].lower()
-        filename = f"temp_{uuid.uuid4().hex}.pdf"
-        filepath = os.path.join("data", filename)
+
+        UPLOAD_DIR = "data"
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+        filename = f"temp_{uuid.uuid4().hex}.{file_ext}"
+        filepath = os.path.join(UPLOAD_DIR, filename)
         file.save(filepath)
 
 
         processed_path = None
+        text = None
+
         # 파일 변환 로직
         if file_ext == 'pdf': # pdf 파일이면 그대로 진행행
             processed_path = filepath
         elif file_ext == 'docx': # docx
             processed_path = filepath.replace('.docx', '.pdf')
+            os.makedirs(os.path.dirname(processed_path), exist_ok=True)
             convert_docx_to_pdf(filepath, processed_path)
         elif file_ext in ['jpg', 'jpeg', 'png']: # 이미지
             text = extract_text_from_image(filepath)
@@ -83,7 +91,7 @@ def embedding():
             loader = PyMuPDFLoader(processed_path)
             docs = loader.load()
             os.remove(processed_path)  # 변환된 PDF 삭제
-        elif text:
+        elif text is not None:
             docs = [{"page_content": text, "metadata": {"page": 1}}]  # OCR 결과 저장
 
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
@@ -104,15 +112,19 @@ def embedding():
         # 페이지 넘버 포함하여 문서 분할
         contents = [doc["content"] for doc in split_documents]
         metadatas = [doc["metadata"] for doc in split_documents]
+        ids = [str(uuid.uuid4()) for _ in contents]
 
         # 문서 임베딩 및 저장
-        vectorstore.add_texts(texts=contents, metadatas=metadatas)
+        vectorstore.add_texts(texts=contents, metadatas=metadatas, ids=ids)
         vectorstore.persist()  # 데이터 저장 유지
-        os.remove(filepath)
+
+        if os.path.exists(filepath):
+            os.remove(filepath)
 
         return jsonify({"message": "PDF successfully embedded"})
 
     except Exception as e:
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 

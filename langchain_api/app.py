@@ -1,3 +1,4 @@
+import traceback
 from flask import Flask, jsonify, request
 import requests
 import openai
@@ -9,6 +10,7 @@ from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_community.vectorstores import Chroma
+from flask_cors import CORS
 
 from docx import Document
 from PIL import Image
@@ -16,44 +18,81 @@ import pytesseract
 
 
 app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return response
+
+
+# OpenAI API 키 설정
+api_key = openai.api_key = ""
 
 load_dotenv()  # .env 파일에서 환경 변수 로드
-api_key = openai.api_key = os.getenv("OPENAI_API_KEY")
 
-app = Flask(__name__)
 embeddings = OpenAIEmbeddings(openai_api_key=openai.api_key)
 # ChromaDB 벡터 데이터베이스 로드 (디스크에 저장)
 # 디스크에 저장해놔야 이전에 저장한 데이터가 유지됨 -> API 호출할 때마다 데이터베이스가 초기화되서 이전에 저장한 데이터 검색 불가능
-vectorstore = Chroma(persist_directory="chroma_db", embedding_function=embeddings)
+vectorstore = Chroma(persist_directory="chroma_db", embedding_function=embeddings, collection_name="eduve")
 
+
+
+# 벡터DB 초기화
+@app.route('/delete_all', methods=['DELETE'])
+def delete_all_data():
+    try:
+        ids = vectorstore.get()['ids']
+
+        # 가져온 모든 ids 삭제
+        if ids:
+            vectorstore.delete(ids=ids)
+
+        return jsonify({"message": f"Deleted {len(ids)} documents from the collection."}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 
 # PDF 파일을 받아 임베딩하여 저장하는 API
-@app.route('/embedding', methods=['POST'])
-def embed_pdf():
+@app.route('/embedding', methods=['POST', 'OPTIONS'])
+def embedding():
+    if request.method == 'OPTIONS':
+        return '', 200
+
     try:
         # 파일이 없으면 400 ERROR
         if 'file' not in request.files:
             return jsonify({"error": "No file provided"}), 400
-        
+
         # 고유한 파일명을 생성(uuid.uuid4().hex)하여 data/디렉토리에 저장
         file = request.files['file']
         # 파일 확장자명 추출
         file_ext = file.filename.split('.')[-1].lower()
-        filename = f"temp_{uuid.uuid4().hex}.pdf"
-        filepath = os.path.join("data", filename)
+        #filename = f"temp_{uuid.uuid4().hex}.pdf"
+        #filepath = os.path.join("data", filename)
+
+
+        UPLOAD_DIR = "data"
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+        filename = f"temp_{uuid.uuid4().hex}.{file_ext}"
+        filepath = os.path.join(UPLOAD_DIR, filename)
         file.save(filepath)
 
 
         processed_path = None
+        text = None
+
         # 파일 변환 로직
         if file_ext == 'pdf': # pdf 파일이면 그대로 진행행
             processed_path = filepath
         elif file_ext == 'docx': # docx
             processed_path = filepath.replace('.docx', '.pdf')
+            os.makedirs(os.path.dirname(processed_path), exist_ok=True)
             convert_docx_to_pdf(filepath, processed_path)
         elif file_ext in ['jpg', 'jpeg', 'png']: # 이미지
             text = extract_text_from_image(filepath)
@@ -70,7 +109,7 @@ def embed_pdf():
             loader = PyMuPDFLoader(processed_path)
             docs = loader.load()
             os.remove(processed_path)  # 변환된 PDF 삭제
-        elif text:
+        elif text is not None:
             docs = [{"page_content": text, "metadata": {"page": 1}}]  # OCR 결과 저장
 
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
@@ -87,19 +126,23 @@ def embed_pdf():
                     "content": chunk.strip(),
                     "metadata": {"page": page_number}
                 })
-        
+
         # 페이지 넘버 포함하여 문서 분할
         contents = [doc["content"] for doc in split_documents]
         metadatas = [doc["metadata"] for doc in split_documents]
-        
+        ids = [str(uuid.uuid4()) for _ in contents]
+
         # 문서 임베딩 및 저장
-        vectorstore.add_texts(texts=contents, metadatas=metadatas)
+        vectorstore.add_texts(texts=contents, metadatas=metadatas, ids=ids)
         vectorstore.persist()  # 데이터 저장 유지
-        os.remove(filepath)
-        
+
+        if os.path.exists(filepath):
+            os.remove(filepath)
+
         return jsonify({"message": "PDF successfully embedded"})
-    
+
     except Exception as e:
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 
@@ -117,20 +160,20 @@ def search():
     try:
         data = request.json
         query = data.get("query", "")
-        
+
         if not query:
             return jsonify({"error": "No query provided"}), 400
-        
+
         retriever = vectorstore.as_retriever()
         docs = retriever.invoke(query)
-        
+
         results = [{"page": doc.metadata["page"], "content": doc.page_content} for doc in docs]
-        
+
         return jsonify({"results": results})
-    
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
+
 
 
 # chat_gpt 호츌 API
@@ -201,12 +244,12 @@ def extract_main_topic(text):
     import spacy
     nlp = spacy.load("en_core_web_sm")  # 영어 모델 (한국어 사용시 ko_core_news_sm 사용)
     doc = nlp(text)
-    
+
     # 명사만 추출하여 대표 키워드 선정
     nouns = [token.text for token in doc if token.pos_ in ["NOUN", "PROPN"]]
-    
+
     return nouns[0] if nouns else text  # 명사가 없으면 원문 반환
-    
+
 
 
 
@@ -228,7 +271,7 @@ def extract_text_from_image(image_path):
 if __name__ == '__main__':
     os.makedirs("data", exist_ok=True)  # PDF 저장할 디렉토리 생성
     os.makedirs("chroma_db", exist_ok=True)  # Chroma DB 저장할 디렉토리 생성
-    app.run(debug=True, port=5000)
+    app.run(host='0.0.0.0', port=5000)
 
 
 
@@ -260,17 +303,17 @@ def split_with_page_numbers(docs, chunk_size=500, chunk_overlap=50):
     for doc in docs:
         page_content = doc.page_content
         page_number = doc.metadata['page']  # 페이지 넘버 가져오기
-        
+
         # 페이지 내용을 청크 단위로 분할
         split_page_content = text_splitter.split_text(page_content)
-        
+
         # 각 청크에 페이지 번호를 추가하고 메타데이터 생성
         for chunk in split_page_content:
             split_documents.append({
                 "content": chunk.strip(),
                 "metadata": {"page": page_number}
             })
-    
+
     return split_documents
 
 

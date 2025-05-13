@@ -10,7 +10,6 @@ from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_community.vectorstores import Chroma
-from flask_cors import CORS
 
 from docx import Document
 from PIL import Image
@@ -18,7 +17,6 @@ import pytesseract
 
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
 
 
 @app.after_request
@@ -32,26 +30,42 @@ def add_cors_headers(response):
 # OpenAI API 키 설정
 api_key = openai.api_key = ""
 
-load_dotenv()  # .env 파일에서 환경 변수 로드
+#load_dotenv()  # .env 파일에서 환경 변수 로드
 
 embeddings = OpenAIEmbeddings(openai_api_key=openai.api_key)
 # ChromaDB 벡터 데이터베이스 로드 (디스크에 저장)
 # 디스크에 저장해놔야 이전에 저장한 데이터가 유지됨 -> API 호출할 때마다 데이터베이스가 초기화되서 이전에 저장한 데이터 검색 불가능
-vectorstore = Chroma(persist_directory="chroma_db", embedding_function=embeddings, collection_name="eduve")
+# vectorstore = Chroma(persist_directory="chroma_db", embedding_function=embeddings, collection_name="eduve")
+
+
+######################### 수정한 부분 ########################
+# 사용자 userId별로 vectorstore 반환하는 메서드 -> 저장할때 사용자userId에 해당하는 collection에 저장
+def get_vectorstore(user_id):
+    return Chroma(
+        persist_directory="chroma_db",
+        embedding_function=embeddings,
+        collection_name=f"eduve_user_{user_id}"
+    )
 
 
 
-# 벡터DB 초기화
+# 벡터DB 초기화 - 사용자별
 @app.route('/delete_all', methods=['DELETE'])
 def delete_all_data():
     try:
+        # 삭제할 userId
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return jsonify({"error": "Missing user_id parameter"}), 400
+        
+        vectorstore = get_vectorstore(user_id)
         ids = vectorstore.get()['ids']
 
         # 가져온 모든 ids 삭제
         if ids:
             vectorstore.delete(ids=ids)
 
-        return jsonify({"message": f"Deleted {len(ids)} documents from the collection."}), 200
+        return jsonify({"message": f"Deleted {len(ids)} documents from user {user_id}'s collection."}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -64,9 +78,23 @@ def embedding():
         return '', 200
 
     try:
+        # userId 없으면 400 ERROR
+        user_id = request.form.get("userId")
+        if not user_id:
+            return jsonify({"error": "userId is required"}), 400
+        
         # 파일이 없으면 400 ERROR
         if 'file' not in request.files:
             return jsonify({"error": "No file provided"}), 400
+
+
+
+        ######################### 수정한 부분 ########################
+        # userId로 collectionname생성
+        vectorstore = get_vectorstore(user_id)
+
+
+
 
         # 고유한 파일명을 생성(uuid.uuid4().hex)하여 data/디렉토리에 저장
         file = request.files['file']
@@ -160,14 +188,39 @@ def search():
     try:
         data = request.json
         query = data.get("query", "")
+        user_id = data.get("userId", "")
+        teacher_id = data.get("teacherId", "")
 
         if not query:
             return jsonify({"error": "No query provided"}), 400
+        if  not user_id or not teacher_id:
+            return jsonify({"error": "userId, and teacherId are required"}), 400
+        
+        # 사용자 userId collection에서 검색
+        user_vectorstore = get_vectorstore(user_id)
+        user_results = user_vectorstore.similarity_search_with_score(query, k=5)
 
-        retriever = vectorstore.as_retriever()
-        docs = retriever.invoke(query)
 
-        results = [{"page": doc.metadata["page"], "content": doc.page_content} for doc in docs]
+        # 선생님 벡터스토어 검색
+        teacher_vectorstore = get_vectorstore(teacher_id)
+        teacher_results = teacher_vectorstore.similarity_search_with_score(query, k=5)
+
+        # 결과 병합 및 점수 기준으로 정렬
+        combined_results = user_results + teacher_results
+        combined_results.sort(key=lambda x: x[1])
+
+        # 상위 5개만 추출
+        top_results = combined_results[:5]
+
+        # 튜플 분해하여 결과 구성
+        results = [
+            {
+                "page": doc.metadata["page"],
+                "content": doc.page_content,
+                "score": score
+            }
+            for doc, score in top_results
+        ]
 
         return jsonify({"results": results})
 

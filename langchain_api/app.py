@@ -215,6 +215,7 @@ def search():
         # 튜플 분해하여 결과 구성
         results = [
             {
+                "file_name": doc.metadata["file_name"],
                 "page": doc.metadata["page"],
                 "content": doc.page_content,
                 "score": score

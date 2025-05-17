@@ -279,47 +279,80 @@ def embedding():
 @app.route('/search', methods=['POST'])
 def search():
     try:
-        data = request.json
+        print("요청 수신됨")
+        data = request.get_json()
+        print("받은 데이터:", data)
+
+        if not data:
+            print("JSON 누락")
+            return {"error": "Invalid or missing JSON body"}, 400 
+        #data = request.json
         query = data.get("query", "")
         user_id = data.get("userId", "")
         teacher_id = data.get("teacherId", "")
 
+        print(f"query: {query}, user_id: {user_id}, teacher_id: {teacher_id}")
+
         if not query:
             return jsonify({"error": "No query provided"}), 400
+<<<<<<< HEAD
         
         if  not user_id or not teacher_id:
             return jsonify({"error": "userId, and teacherId are required"}), 400
+=======
+        if  not user_id:
+            return jsonify({"error": "userId is required"}), 400
+>>>>>>> e70403c7deeb7480f54f768ecad7aea410e5f822
         
         # 사용자 userId collection에서 검색
+        print("사용자 벡터스토어 가져오는 중...")
         user_vectorstore = get_vectorstore(user_id)
+        print("user_vectorstore 로드 완료")
         user_results = user_vectorstore.similarity_search_with_score(query, k=5)
+        print(f"🎯 user_results: {user_results}")
+
+        combined_results = user_results
 
 
-        # 선생님 벡터스토어 검색
-        teacher_vectorstore = get_vectorstore(teacher_id)
-        teacher_results = teacher_vectorstore.similarity_search_with_score(query, k=5)
+        # teacherId가 있는 경우에만 선생님 벡터스토어 검색
+        if teacher_id:
+            print("👩‍🏫 teacher_vectorstore 가져오는 중...")
+            teacher_vectorstore = get_vectorstore(teacher_id)
+            teacher_results = teacher_vectorstore.similarity_search_with_score(query, k=5)
+            print(f"🎯 teacher_results: {teacher_results}")
+            combined_results += teacher_results
 
-        # 결과 병합 및 점수 기준으로 정렬
-        combined_results = user_results + teacher_results
+
+        # 점수 기준으로 정렬
+        print("📊 결과 정렬 중...")
         combined_results.sort(key=lambda x: x[1])
 
         # 상위 5개만 추출
         top_results = combined_results[:5]
+        print(f"🏆 top_results: {top_results}")
 
         # 튜플 분해하여 결과 구성
+<<<<<<< HEAD
         results = [
             {
                 "file_name": doc.metadata["file_name"],
+=======
+        results = []
+        for doc, score in top_results:
+            print("📄 doc metadata:", doc.metadata)
+            results.append({
+                #"file_name": doc.metadata["file_name"],  # 주석 처리된 이유는 아마 없을 수도 있어서
+>>>>>>> e70403c7deeb7480f54f768ecad7aea410e5f822
                 "page": doc.metadata["page"],
                 "content": doc.page_content,
                 "score": score
-            }
-            for doc, score in top_results
-        ]
+            })
 
+        print("✅ 최종 응답 반환")
         return jsonify({"results": results})
 
     except Exception as e:
+        print("🔥 예외 발생:", traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
 

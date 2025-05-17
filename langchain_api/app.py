@@ -242,8 +242,8 @@ def embedding():
             for chunk in chunks:
                 split_documents.append({
                     "content": chunk.strip(),
-                    "metadata": {"page": page_number},
-                    "filename": title  # 여기서 파일명 메타데이터 추가
+                    "metadata": {"page": page_number,
+                    "filename": title},
                 })
 
 
@@ -331,8 +331,8 @@ def search():
         for doc, score in top_results:
             print("📄 doc metadata:", doc.metadata)
             results.append({
-                "file_name": doc.metadata["file_name"],  # 주석 처리된 이유는 아마 없을 수도 있어서
-                "page": doc.metadata["page"],
+                "file_name": doc.metadata.get("filename", "unknown"),  # 없으면 "unknown"으로 처리
+                "page": doc.metadata.get("page", 0),
                 "content": doc.page_content,
                 "score": score
             })

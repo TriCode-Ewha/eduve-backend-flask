@@ -136,6 +136,9 @@ def embedding():
         # 파일이 없으면 400 ERROR
         if 'file' not in request.files:
             return jsonify({"error": "No file provided"}), 400
+        
+        # 3. 새로 추가: 스프링부트에서 넘겨준 파일명(title) 받아오기
+        title = request.form.get("title", "unknown_filename")
 
 
 
@@ -240,7 +243,8 @@ def embedding():
             for chunk in chunks:
                 split_documents.append({
                     "content": chunk.strip(),
-                    "metadata": {"page": page_number}
+                    "metadata": {"page": page_number},
+                    "filename": title  # 여기서 파일명 메타데이터 추가
                 })
 
 

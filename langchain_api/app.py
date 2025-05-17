@@ -1,3 +1,4 @@
+import fitz # PuMuPDF
 import traceback
 from flask import Flask, jsonify, request
 import requests
@@ -10,11 +11,18 @@ from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_community.vectorstores import Chroma
+from flask_cors import CORS
+from pdf2image import convert_from_path
+from docx2pdf import convert as convert_docx_pdf
+import tempfile
+import base64
 
 from docx import Document
 from PIL import Image
 import pytesseract
+import time
 
+load_dotenv()  # .env 파일에서 환경 변수 로드
 
 app = Flask(__name__)
 
@@ -30,13 +38,17 @@ def add_cors_headers(response):
 # OpenAI API 키 설정
 api_key = openai.api_key = ""
 
+# Clova OCR API 키 설정
+clova_api_url = ""
+clova_api_secret = ""
+
 #load_dotenv()  # .env 파일에서 환경 변수 로드
+
 
 embeddings = OpenAIEmbeddings(openai_api_key=openai.api_key)
 # ChromaDB 벡터 데이터베이스 로드 (디스크에 저장)
 # 디스크에 저장해놔야 이전에 저장한 데이터가 유지됨 -> API 호출할 때마다 데이터베이스가 초기화되서 이전에 저장한 데이터 검색 불가능
 # vectorstore = Chroma(persist_directory="chroma_db", embedding_function=embeddings, collection_name="eduve")
-
 
 ######################### 수정한 부분 ########################
 # 사용자 userId별로 vectorstore 반환하는 메서드 -> 저장할때 사용자userId에 해당하는 collection에 저장
@@ -46,7 +58,6 @@ def get_vectorstore(user_id):
         embedding_function=embeddings,
         collection_name=f"eduve_user_{user_id}"
     )
-
 
 
 # 벡터DB 초기화 - 사용자별
@@ -71,6 +82,45 @@ def delete_all_data():
 
 
 
+
+# 클로바 OCR
+def call_clova_ocr(image_bytes):
+    # 클로바 OCR API 호출
+    image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+
+    headers = {
+        "X-OCR-SECRET": clova_api_secret,
+        "Content-Type": "application/json"
+    }
+
+    payload = {
+        "images": [{"format": "jpg", "name": "sample", "data": image_base64}],
+        "version": "V2",
+        "requestId": str(uuid.uuid4()),
+        "timestamp": int(time.time() * 1000)
+    }
+
+    response = requests.post(clova_api_url, headers=headers, json=payload)
+    response.raise_for_status()
+    result = response.json()
+
+    # 클로바 OCR API 결과에서 텍스트만 추출
+    texts = []
+    for field in result.get('images', [{}])[0].get('fields', []):
+        texts.append(field.get('inferText', ''))
+
+        extracted_text = '\n'.join(texts)
+    
+    # 여기서 텍스트 출력해보기
+    print("=== OCR 추출된 텍스트 ===")
+    print(extracted_text)
+    print("=======================")
+    
+    return extracted_text
+
+
+
+
 # PDF 파일을 받아 임베딩하여 저장하는 API
 @app.route('/embedding', methods=['POST', 'OPTIONS'])
 def embedding():
@@ -86,6 +136,9 @@ def embedding():
         # 파일이 없으면 400 ERROR
         if 'file' not in request.files:
             return jsonify({"error": "No file provided"}), 400
+        
+        # 3. 새로 추가: 스프링부트에서 넘겨준 파일명(title) 받아오기
+        title = request.form.get("title", "unknown_filename")
 
 
 
@@ -111,10 +164,11 @@ def embedding():
         filepath = os.path.join(UPLOAD_DIR, filename)
         file.save(filepath)
 
-
+        '''
         processed_path = None
         text = None
 
+        
         # 파일 변환 로직
         if file_ext == 'pdf': # pdf 파일이면 그대로 진행행
             processed_path = filepath
@@ -130,6 +184,7 @@ def embedding():
         else:
             return jsonify({"error": "Unsupported file format"}), 400
 
+        
 
         # PDF 로드 및 분할
         docs = []
@@ -154,6 +209,44 @@ def embedding():
                     "content": chunk.strip(),
                     "metadata": {"page": page_number}
                 })
+        '''
+
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+        split_documents = []
+
+        # DOCX는 PDF로 변환
+        if file_ext == 'docx':
+            processed_path = filepath.replace('.docx', '.pdf')
+            convert_docx_pdf(filepath, processed_path)
+            ocr_results = extract_ocr_texts_by_page(processed_path)
+            os.remove(processed_path)
+
+        elif file_ext == 'pdf':
+            ocr_results = extract_ocr_texts_by_page(filepath)
+
+        elif file_ext in ['jpg', 'jpeg', 'png']:
+            text = extract_text_from_image(filepath)
+            ocr_results = [{"page": 1, "text": text}]
+
+        elif file_ext == 'txt':
+            with open(filepath, 'r', encoding='utf-8') as f:
+                text = f.read()
+                ocr_results = [{"page": 1, "text": text}]
+
+        else:
+            return jsonify({"error": "Unsupported file format"}), 400
+
+        for result in ocr_results:
+            page_number = result["page"]
+            page_text = result["text"]
+            chunks = text_splitter.split_text(page_text)
+            for chunk in chunks:
+                split_documents.append({
+                    "content": chunk.strip(),
+                    "metadata": {"page": page_number},
+                    "filename": title  # 여기서 파일명 메타데이터 추가
+                })
+
 
         # 페이지 넘버 포함하여 문서 분할
         contents = [doc["content"] for doc in split_documents]
@@ -167,13 +260,13 @@ def embedding():
         if os.path.exists(filepath):
             os.remove(filepath)
 
-        return jsonify({"message": "PDF successfully embedded"})
+        return jsonify({"message": "Document successfully embedded with OCR"})
 
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-
+1
 
 
 # 유사도 검색 API
@@ -202,8 +295,14 @@ def search():
 
         if not query:
             return jsonify({"error": "No query provided"}), 400
+<<<<<<< HEAD
+        
+        if  not user_id or not teacher_id:
+            return jsonify({"error": "userId, and teacherId are required"}), 400
+=======
         if  not user_id:
             return jsonify({"error": "userId is required"}), 400
+>>>>>>> e70403c7deeb7480f54f768ecad7aea410e5f822
         
         # 사용자 userId collection에서 검색
         print("사용자 벡터스토어 가져오는 중...")
@@ -233,11 +332,17 @@ def search():
         print(f"🏆 top_results: {top_results}")
 
         # 튜플 분해하여 결과 구성
+<<<<<<< HEAD
+        results = [
+            {
+                "file_name": doc.metadata["file_name"],
+=======
         results = []
         for doc, score in top_results:
             print("📄 doc metadata:", doc.metadata)
             results.append({
                 #"file_name": doc.metadata["file_name"],  # 주석 처리된 이유는 아마 없을 수도 있어서
+>>>>>>> e70403c7deeb7480f54f768ecad7aea410e5f822
                 "page": doc.metadata["page"],
                 "content": doc.page_content,
                 "score": score
@@ -338,11 +443,31 @@ def convert_docx_to_pdf(docx_path, pdf_path):
 
 # 이미지에서 텍스트 추출
 def extract_text_from_image(image_path):
+    '''
     image = Image.open(image_path)
     text = pytesseract.image_to_string(image, lang="eng+kor")  # OCR 수행
     return text
+    '''
+    with open(image_path, 'rb') as f:
+        image_bytes = f.read()
+
+    ocr_text = call_clova_ocr(image_bytes)
+    return ocr_text
 
 
+# pdf 이미지 처리
+def extract_ocr_texts_by_page(pdf_path):
+    images = convert_from_path(pdf_path)
+    page_texts = []
+    for i, image in enumerate(images, start=1):
+        # 이미지 메모리에 저장
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+            image.save(tmp.name, "JPEG")
+            with open(tmp.name, "rb") as img_file:
+                ocr_text = call_clova_ocr(img_file.read()) or ""
+                page_texts.append({"page": i, "text": ocr_text})
+        os.remove(tmp.name)
+    return page_texts      
 
 if __name__ == '__main__':
     os.makedirs("data", exist_ok=True)  # PDF 저장할 디렉토리 생성

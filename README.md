@@ -65,7 +65,7 @@ AI 검색 및 생성 파이프라인은 `langchain_api/` 디렉토리에 구성�
 | `langchain_api/test/all_cases.csv`        | 전체 평가 결과 저장 파일 (자동 생성) |
 | `langchain_api/test/wrong_cases.csv`      | 정답과 일치하지 않는 오답 케이스 저장 파일 |
 | `.env_sample`                             | API 키, 임베딩 모델 등 환경 변수 예시 설정 |
-API에서 받은 질문은 관련 문서를 벡터 유사도로 검색 후 LLM으로 생성 응답을 반환하는 RAG(Retrieval-Augmented Generation) 구조입니다.
+
 
 <br>
 <br>

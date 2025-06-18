@@ -1,7 +1,6 @@
+# Edu've: RAG 기반 AI 챗봇 서비스
 
-# Eduve: RAG 기반 AI 챗봇 서비스
-
-Eduve는 **RAG(Retrieval-Augmented Generation) 기반의 AI 챗봇 학습 지원 서비스**로, 학생과 교사의 문서 기반 질문 응답을 지원합니다. 음성(STT), OCR, 채팅 저장 기능을 포함하며, Spring Boot와 Flask로 백엔드를 구성하고 React 기반 웹 인터페이스를 제공합니다. 학습 환경에서의 커뮤니케이션과 정보 접근성을 향상시키는 것을 목표로 합니다.
+Edu've는 RAG(Retrieval-Augmented Generation) 기반의 AI 챗봇 학습 지원 서비스로, 강사와 수강생 문서 기반 질문 응답을 지원합니다. 학습자료 아카이빙, 개인 맞춤형 챗봇, 실시간 질의응답 기능을 포함하며, Spring Boot와 Flask로 백엔드를 구성하고 React 기반 웹 인터페이스를 제공합니다. 학습 환경에서의 커뮤니케이션과 정보 접근성을 향상시키는 것을 목표로 합니다.
 
 <br>
 
@@ -25,6 +24,12 @@ Eduve는 **RAG(Retrieval-Augmented Generation) 기반의 AI 챗봇 학습 지원
 # Flask (eduve-backend-flask)
 
 Flask는 LangChain 기반의 AI 추론 서버로, 유저의 질문에 대해 문서 검색(RAG)과 LLM 생성을 통해 응답을 생성합니다. Spring Boot 서버와 연동되어 동작합니다.
+
+| **구성 요소** | **역할** | **서버 타입** |
+| --- | --- | --- |
+| 임베딩 서버 | 쿼리를 벡터로 변환 | 전처리 서버 |
+| 벡터 DB + 검색 | 유사 청크 반환 | 검색 서버 |
+| LLM 호출 부분 | 응답 생성 | 추론 서버 
 
 <br>
 <br>
@@ -256,7 +261,7 @@ API 서버 콘솔에서는 다음과 같이 OCR 결과가 출력됩니다:
 
 - 예시 파일:
   - test_file.pdf
-  - sample_image.jpg
+  - sample_image.png
 
 - 이 파일들은 /embedding API를 통해 벡터화되어 검색 테스트에 사용됩니다.
 

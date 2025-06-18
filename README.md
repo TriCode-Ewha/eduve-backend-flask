@@ -27,6 +27,7 @@ Eduve는 **RAG(Retrieval-Augmented Generation) 기반의 AI 챗봇 학습 지원
 Flask는 LangChain 기반의 AI 추론 서버로, 유저의 질문에 대해 문서 검색(RAG)과 LLM 생성을 통해 응답을 생성합니다. Spring Boot 서버와 연동되어 동작합니다.
 
 <br>
+<br>
 
 ## 📁 주요 디렉토리 구조
 
@@ -51,6 +52,7 @@ eduve-backend-flask/
 
 <br>
 <br>
+<br>
 
 
 ## 🧾 Source Code 설명
@@ -68,6 +70,7 @@ AI 검색 및 생성 파이프라인은 `langchain_api/` 디렉토리에 구성�
 | `.env_sample`                             | API 키, 임베딩 모델 등 환경 변수 예시 설정 |
 
 
+<br>
 <br>
 <br>
 
@@ -92,6 +95,7 @@ cp .env_sample .env
 ```
 <br>
 <br>
+<br>
 
 
 ## 🛠 How to Build
@@ -104,6 +108,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+<br>
 <br>
 <br>
 
@@ -119,7 +124,7 @@ python langchain_api/app.py
 
 
 
-
+<br>
 <br>
 <br>
 
@@ -193,7 +198,7 @@ API 서버 콘솔에서는 다음과 같이 OCR 결과가 출력됩니다:
 - 콘솔에 출력된 텍스트를 통해 OCR이 문서를 얼마나 정확하게 인식했는지 직접 확인할 수 있습니다.
 
 
-
+<br>
 <br>
 <br>
 
@@ -202,24 +207,25 @@ API 서버 콘솔에서는 다음과 같이 OCR 결과가 출력됩니다:
 
 
 #### 1. 검색 평가 질문 리스트 (tests.json)
-- 위치: `langchain_api/test/tests.json`
-- 형식: JSON
+  - 위치: `langchain_api/test/tests.json`
+  - 형식: JSON
 
-```json
-[
-  {
-    "query": "학교폭력에 대한 법적 절차는 어떻게 되나요?",
-    "answer_filename": "school_policy.pdf",
-    "answer_page": 12
-  },
-  {
-    "query": "사이버 폭력 신고 방법 알려줘",
-    "answer_filename": "cyber_safety_guide.pdf",
-    "answer_page": 5
-  }
-]
-```
-- 각 항목은 실제 질문(query)과 해당 질문의 정답이 존재하는 PDF 문서 파일명(answer_filename), 정답 페이지(answer_page)를 포함합니다.
+    ```json
+    [
+      {
+        "query": "학교폭력에 대한 법적 절차는 어떻게 되나요?",
+        "answer_filename": "school_policy.pdf",
+        "answer_page": 12
+      },
+      {
+        "query": "사이버 폭력 신고 방법 알려줘",
+        "answer_filename": "cyber_safety_guide.pdf",
+        "answer_page": 5
+      }
+    ]
+    ```
+
+  - 각 항목은 실제 질문(query)과 해당 질문의 정답이 존재하는 PDF 문서 파일명(answer_filename), 정답 페이지(answer_page)를 포함합니다.
 
 
 
@@ -227,20 +233,20 @@ API 서버 콘솔에서는 다음과 같이 OCR 결과가 출력됩니다:
 - 생성 위치: ./all_cases.csv (테스트 실행 후 자동 생성)
 - 형식: CSV
 
-```csv
-query,answer_filename,answer_page,pred_file_top1,pred_page_top1,score_top1,correct_file,correct_page
-"학교폭력에 대한 법적 절차는 어떻게 되나요?","school_policy.pdf",12,"school_policy.pdf",12,0.9273,TRUE,TRUE
-"사이버 폭력 신고 방법 알려줘","cyber_safety_guide.pdf",5,"other_file.pdf",7,0.8123,FALSE,FALSE
-```
+    ```csv
+    query,answer_filename,answer_page,pred_file_top1,pred_page_top1,score_top1,correct_file,correct_page
+    "학교폭력에 대한 법적 절차는 어떻게 되나요?","school_policy.pdf",12,"school_policy.pdf",12,0.9273,TRUE,TRUE
+    "사이버 폭력 신고 방법 알려줘","cyber_safety_guide.pdf",5,"other_file.pdf",7,0.8123,FALSE,FALSE
+    ```
 - 예측 결과와 정답 비교 결과(correct_file, correct_page)가 포함되어 성능 분석이 가능합니다.
 
 #### 3. 오답 사례 (wrong_cases.csv)
 - 생성 위치: ./wrong_cases.csv
 - 형식: CSV
-```csv
-query,gt_file,gt_page,top5
-"사이버 폭력 신고 방법 알려줘","cyber_safety_guide.pdf",5,"[('other_file.pdf', 7, 0.81), ...]"
-```
+  ```csv
+  query,gt_file,gt_page,top5
+  "사이버 폭력 신고 방법 알려줘","cyber_safety_guide.pdf",5,"[('other_file.pdf', 7, 0.81), ...]"
+  ```
 - Top‑5 안에 정답 문서+페이지 조합이 없었던 질문들만 별도로 저장됩니다.
 - 성능 개선을 위한 오답 분석에 유용합니다.
 
@@ -253,7 +259,7 @@ query,gt_file,gt_page,top5
   - cyber_safety_guide.pdf
   - sample_image.jpg
 
-이 파일들은 /embedding API를 통해 벡터화되어 검색 테스트에 사용됩니다.
+- 이 파일들은 /embedding API를 통해 벡터화되어 검색 테스트에 사용됩니다.
 
 <br>
 <br>
@@ -269,7 +275,7 @@ USE_LOCAL_EMBEDDING=true
 ```
 
 
-
+<br>
 <br>
 <br>
 

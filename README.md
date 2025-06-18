@@ -1,9 +1,8 @@
 
 # Eduve: RAG 기반 AI 챗봇 서비스
 
-Eduve는 음성 인식(STT), OCR 문자 추출, 채팅 메시지 저장 등 기능을 제공하는 Spring Boot 기반의 교육 지원 백엔드 서버입니다. 이 프로젝트는 JWT 인증과 RESTful API를 기반으로 하며, 학생과 교사 간 커뮤니케이션을 지원합니다.
+Eduve는 **RAG(Retrieval-Augmented Generation) 기반의 AI 챗봇 학습 지원 서비스**로, 학생과 교사의 문서 기반 질문 응답을 지원합니다. 음성(STT), OCR, 채팅 저장 기능을 포함하며, Spring Boot와 Flask로 백엔드를 구성하고 React 기반 웹 인터페이스를 제공합니다. 학습 환경에서의 커뮤니케이션과 정보 접근성을 향상시키는 것을 목표로 합니다.
 
-<br>
 <br>
 
 ## 📦 프로젝트 구성 레포지토리
@@ -19,9 +18,11 @@ Eduve는 음성 인식(STT), OCR 문자 추출, 채팅 메시지 저장 등 기�
 
 <br>
 <br>
+<br>
+<br>
 
 
-## Flask (eduve-backend-flask)
+# Flask (eduve-backend-flask)
 
 Flask는 LangChain 기반의 AI 추론 서버로, 유저의 질문에 대해 문서 검색(RAG)과 LLM 생성을 통해 응답을 생성합니다. Spring Boot 서버와 연동되어 동작합니다.
 
@@ -124,11 +125,13 @@ python langchain_api/app.py
 
 
 ## ✅ How to Test
+### 1. RAG 기반 유사도 검색 성능
+
 본 프로젝트에서는 RAG 기반 검색 성능을 평가하기 위해 별도의 CLI 스크립트를 제공합니다.  
 정확도는 다음 두 항목으로 나누어 계산됩니다:
 
-- **📁 Top‑1 파일 정확도**: 가장 첫 번째 결과의 `file_name`이 정답과 일치
-- **📄 Top‑5 페이지 정확도**: 상위 5개 결과 중 `file_name`과 `page`가 모두 일치하는 항목 존재
+- **Top‑1 파일 정확도**: 가장 첫 번째 결과의 `file_name`이 정답과 일치
+- **Top‑5 페이지 정확도**: 상위 5개 결과 중 `file_name`과 `page`가 모두 일치하는 항목 존재
 
 
 #### 테스트 실행
@@ -147,7 +150,6 @@ python langchain_api/test/test_search_accuracy.py \
 | `langchain_api/test/test_flask.py`           | 기본 Flask 엔드포인트 테스트 코드              |
 
 
-
 #### 출력 예시
 ```bash
 파일 Top‑1 정확도 : 73.12%
@@ -162,13 +164,42 @@ All cases saved → all_cases.csv
 | `all_cases.csv`   | 전체 테스트 결과 (예측 결과, 정답, 일치 여부 등 포함) |
 | `wrong_cases.csv` | 정답과 불일치한 케이스만 따로 저장한 파일           |
 
+<br>
+
+### 2. 텍스트 추출 정확도
+본 프로젝트의 /embedding API는 PDF, 이미지, DOCX 등 다양한 문서로부터 텍스트를 추출하고 임베딩합니다. 
+추출된 텍스트는 콘솔에 출력되어 확인 가능합니다.
+
+
+#### 테스트 실행
+```bash
+curl -X POST http://localhost:5000/embedding \
+  -F "userId=test_user" \
+  -F "file=@./sample_image.jpg" \
+  -F "title=cyber_safety_guide.pdf"
+```
+- file에는 테스트할 이미지, PDF, docx 파일을 넣고, title은 실제 저장될 문서명처럼 넣습니다.
+
+
+#### 콘솔 출력 예시
+API 서버 콘솔에서는 다음과 같이 OCR 결과가 출력됩니다:
+
+```markdown
+=== OCR 추출된 텍스트 ===
+사이버 폭력은 다음 경로로 신고할 수 있습니다....
+...
+=======================
+```
+- 콘솔에 출력된 텍스트를 통해 OCR이 문서를 얼마나 정확하게 인식했는지 직접 확인할 수 있습니다.
+
 
 
 <br>
 <br>
 
 ## 📊 샘플 데이터 설명
-프로젝트에는 AI 검색 정확도 평가용 테스트 데이터가 포함되어 있습니다.
+프로젝트에는 AI 검색 정확도 평가와 텍스트 임베딩 테스트를 위한 샘플 데이터가 포함되어 있습니다.
+
 
 #### 1. 검색 평가 질문 리스트 (tests.json)
 - 위치: `langchain_api/test/tests.json`
@@ -212,6 +243,17 @@ query,gt_file,gt_page,top5
 ```
 - Top‑5 안에 정답 문서+페이지 조합이 없었던 질문들만 별도로 저장됩니다.
 - 성능 개선을 위한 오답 분석에 유용합니다.
+
+#### 4. 임베딩용 예시 문서 파일
+- 위치: langchain_api/test/resources/ 또는 data/ 디렉토리 내
+- 사용 목적: 테스트용 질문과 매칭되는 실제 PDF 또는 이미지 파일 제공
+
+- 예시 파일:
+  - school_policy.pdf
+  - cyber_safety_guide.pdf
+  - sample_image.jpg
+
+이 파일들은 /embedding API를 통해 벡터화되어 검색 테스트에 사용됩니다.
 
 <br>
 <br>

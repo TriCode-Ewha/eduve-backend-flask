@@ -180,8 +180,8 @@ All cases saved → all_cases.csv
 ```bash
 curl -X POST http://localhost:5000/embedding \
   -F "userId=test_user" \
-  -F "file=@./sample_image.jpg" \
-  -F "title=cyber_safety_guide.pdf"
+  -F "file=@./test/test_file.pdf" \
+  -F "title=critical_analysis.pdf"
 ```
 - file에는 테스트할 이미지, PDF, docx 파일을 넣고, title은 실제 저장될 문서명처럼 넣습니다.
 
@@ -251,12 +251,11 @@ API 서버 콘솔에서는 다음과 같이 OCR 결과가 출력됩니다:
 - 성능 개선을 위한 오답 분석에 유용합니다.
 
 #### 4. 임베딩용 예시 문서 파일
-- 위치: langchain_api/test/resources/ 또는 data/ 디렉토리 내
+- 위치: langchain_api/test/ 디렉토리 내
 - 사용 목적: 테스트용 질문과 매칭되는 실제 PDF 또는 이미지 파일 제공
 
 - 예시 파일:
-  - school_policy.pdf
-  - cyber_safety_guide.pdf
+  - test_file.pdf
   - sample_image.jpg
 
 - 이 파일들은 /embedding API를 통해 벡터화되어 검색 테스트에 사용됩니다.

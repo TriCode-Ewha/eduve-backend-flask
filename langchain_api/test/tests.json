@@ -1,0 +1,68 @@
+[
+  { "query": "센티넬 이니셔티브(Sentinel Initiative)가 공식적으로 시작된 연도는?",        "answer_filename": "로페콕시브안전성사건파일.pdf",       "answer_page": 8 },
+  { "query": "기존의 의약품안전관리체계의 문제점들에는 어떤 것들이 있었나?",                "answer_filename": "로페콕시브안전성사건파일.pdf",        "answer_page": 3 },
+  { "query": "로페콕시브가 시장에서 전면 철회된 해는?",                                  "answer_filename": "로페콕시브안전성사건파일.pdf",       "answer_page": 2 },
+  { "query": "센티넬시스템을 시범적으로 적용하는 2009년부터 5년에 걸친 프로젝트 이름은?",    "answer_filename": "로페콕시브안전성사건파일.pdf",        "answer_page": 8 },
+  { "query": "VIGOR 연구에서 로페콕시브군 심근경색 발생률은 나프록센군 대비 몇 배였나?",     "answer_filename": "로페콕시브안전성사건파일.pdf",       "answer_page": 3 },
+  { "query": "미 IOM 보고서 ‘The Future of Drug Safety’가 발표된 연도는?",             "answer_filename": "로페콕시브안전성사건파일.pdf",        "answer_page": 7 },
+
+
+  { "query": "국제민간항공기구(ICAO)가 채택한 무인항공기 공식 용어는 무엇인가?",       "answer_filename": "10_09._유인항공교통에서_무인항공교통으로_9주차.pdf", "answer_page": 6 },
+  { "query": "Small Unmanned Aircraft Systems (sUAS Rule)이 신설된 연도는?",     "answer_filename": "10_09._유인항공교통에서_무인항공교통으로_9주차.pdf", "answer_page": 13 },
+  { "query": "Small Unmanned Aircraft(sUA)의 최대 중량 상한은?",                 "answer_filename": "10_09._유인항공교통에서_무인항공교통으로_9주차.pdf", "answer_page": 14 },
+  { "query": "Nano 드론으로 분류되는 최대 이륙중량 기준은 몇 g 미만인가?",            "answer_filename": "10_09._유인항공교통에서_무인항공교통으로_9주차.pdf", "answer_page": 44 },
+  { "query": "우리나라 초경량비행장치 신고 기준 중 비사업자 무게 기준은 몇 kg 초과인가?", "answer_filename": "10_09._유인항공교통에서_무인항공교통으로_9주차.pdf", "answer_page": 25 },
+  { "query": "드론법 제2조에서 정의한 ‘드론시스템’에 포함되지 않는 것은? (지상통제국, 통신체계, 항행관리, ___)", "answer_filename": "10_09._유인항공교통에서_무인항공교통으로_9주차.pdf", "answer_page": 21 },
+
+
+  { "query": "bell hooks가 정의한 페미니즘의 핵심 목적은 무엇의 종식인가?",                "answer_filename": "2. 페미니즘의 역사와 여성운동(2) 싸캠.pdf",      "answer_page": 2 },
+  { "query": "메리 울스턴크래프트가 『여성 권리의 옹호』를 출간한 연도는?",                 "answer_filename": "2. 페미니즘의 역사와 여성운동(2) 싸캠.pdf",      "answer_page": 5 },
+  { "query": "세계 최초로 여성 참정권을 인정한 국가는 어디인가?",                          "answer_filename": "2. 페미니즘의 역사와 여성운동(2) 싸캠.pdf",      "answer_page":  4 },
+  { "query": "‘남성이 부르주아지라면 그의 아내는 프롤레타리아다’라는 말을 한 사상가는?",      "answer_filename": "2. 페미니즘의 역사와 여성운동(2) 싸캠.pdf",      "answer_page": 23 },
+  { "query": "자유주의 페미니즘이 중점적으로 개선하고자 한 영역은 ‘공적 영역 대 ___ 영역’ 중 어느 쪽인가?", "answer_filename": "2. 페미니즘의 역사와 여성운동(2) 싸캠.pdf", "answer_page": 4 },
+  { "query": "해방 이후 대한민국 여성 관련 1호 법안은?",                                 "answer_filename": "2. 페미니즘의 역사와 여성운동(2) 싸캠.pdf",      "answer_page": 15 },
+
+
+  { "query": "‘가족구성권’의 개념은 무엇인가?",                                                   "answer_filename": "3. 가족과 친밀성에 대한 질문(2)_.pdf",    "answer_page": 3},
+  { "query": "현행 건강가정기본법 제3조는 가족을 어떤 세 가지 관계로 정의하는가?",                     "answer_filename": "3. 가족과 친밀성에 대한 질문(2)_.pdf",    "answer_page": 5 },
+  { "query": "2020년 발의된 건강가정기본법 개정안은 가족 정의 조항을 삭제하고 어떤 문구를 삽입했는가?",   "answer_filename": "3. 가족과 친밀성에 대한 질문(2)_.pdf",    "answer_page": 5 },
+  { "query": "‘보스턴 결혼(Boston marriage)’이란?",                                             "answer_filename": "3. 가족과 친밀성에 대한 질문(2)_.pdf",     "answer_page": 8 },
+  { "query": "프랑스 ‘PACS’ 제도는 어느 해에 도입됐나?",                                          "answer_filename": "3. 가족과 친밀성에 대한 질문(2)_.pdf",     "answer_page": 9 },
+  { "query": "‘퀴어가족정치’는 무엇을 해체하고자 하는가? (___________ 중심 시민모델)",               "answer_filename": "3. 가족과 친밀성에 대한 질문(2)_.pdf",     "answer_page": 13 },
+
+  
+  { "query": "미국 연방법에서 연방세법이 속한 법전 Title 번호는?",                         "answer_filename": "미국세법의 이해_강의노트_1-2차시.pdf",      "answer_page": 8 },
+  { "query": "미국의 개인 소득세는 어떤 세율 구조(누진·비례·역진)인가?",                     "answer_filename": "미국세법의 이해_강의노트_1-2차시.pdf",     "answer_page": 4 },
+  { "query": "미국 법인세의 단일 세율은 몇 %인가?",                                       "answer_filename": "미국세법의 이해_강의노트_1-2차시.pdf",     "answer_page": 5 },
+  { "query": "Social Security Tax는 어떤 세율 구조(누진·비례·역진)의 예시로 제시되었나?",   "answer_filename": "미국세법의 이해_강의노트_1-2차시.pdf",      "answer_page": 6 },
+  { "query": "과세 기준이 소득이 아닌 재산이며, 종가세(Ad Valorem Taxes)라고 불리는 것은?",  "answer_filename": "미국세법의 이해_강의노트_1-2차시.pdf",     "answer_page": 11 },
+  { "query": "원천징수한 소득세는 회사가 직접 어디에 납부하는가?",                          "answer_filename": "미국세법의 이해_강의노트_1-2차시.pdf",     "answer_page": 9 },
+
+
+  { "query": "근육 원섬유 마디의 구조는 무엇으로 이루어져 있는가?",                    "answer_filename": "EBS 2026학년도 수능특강 과학탐구영역 생명과학Ⅰ.pdf",      "answer_page": 1 },
+  { "query": "항상성 조절에 중요한 역할을 하는 시상하부로 구분되는 뇌의 영역은?",        "answer_filename": "EBS 2026학년도 수능특강 과학탐구영역 생명과학Ⅰ.pdf",      "answer_page": 2 },
+  { "query": "신경절 이후 뉴런의 축삭돌기 말단에서 노르에피네프린이 분비되는 신경은?",    "answer_filename": "EBS 2026학년도 수능특강 과학탐구영역 생명과학Ⅰ.pdf",      "answer_page": 3 },
+  { "query": "티록신 분비량이 너무 많으면 나타나는 증상은?",                          "answer_filename": "EBS 2026학년도 수능특강 과학탐구영역 생명과학Ⅰ.pdf",      "answer_page": 4 },
+  { "query": "감염성 질병의 병원체의 종류는?",                                      "answer_filename": "EBS 2026학년도 수능특강 과학탐구영역 생명과학Ⅰ.pdf",      "answer_page": 5 },
+
+
+  { "query": "사회불평등을 바라보는 관점 2가지",             "answer_filename": "EBS 2026학년도 수능특강 사회탐구영역 사회·문화.pdf",         "answer_page": 2 },
+  { "query": "질적연구의 의미는?",                         "answer_filename": "EBS 2026학년도 수능특강 사회탐구영역 사회·문화.pdf",         "answer_page": 5 },
+  { "query": "질적연구에 적합한 연구 사례는?",               "answer_filename": "EBS 2026학년도 수능특강 사회탐구영역 사회·문화.pdf",         "answer_page": 6 },
+  { "query": "질문지법의 장점과 단점은?",                   "answer_filename": "EBS 2026학년도 수능특강 사회탐구영역 사회·문화.pdf",         "answer_page": 7 },
+  { "query": "공식 조직과 비공식 조직의 설명",               "answer_filename": "EBS 2026학년도 수능특강 사회탐구영역 사회·문화.pdf",         "answer_page": 9 },
+
+
+  { "query": "조선 전기의 사대교린 외교",                   "answer_filename": "EBS 2026학년도 수능특강 한국사영역 한국사.pdf",              "answer_page": 1 },
+  { "query": "조선후기의 향촌 지배 질서의 변화",             "answer_filename": "EBS 2026학년도 수능특강 한국사영역 한국사.pdf",              "answer_page": 2 },
+  { "query": "갑신정변이 일어난 배경과 전개",                "answer_filename": "EBS 2026학년도 수능특강 한국사영역 한국사.pdf",              "answer_page": 5 },
+  { "query": "통일신라는 통치체제를 어떻게 정비했나?",        "answer_filename": "EBS 2026학년도 수능특강 한국사영역 한국사.pdf",               "answer_page": 7 },
+  { "query": "조선 건국한 인물과 건국시기",                 "answer_filename": "EBS 2026학년도 수능특강 한국사영역 한국사.pdf",               "answer_page": 12 },
+
+
+  { "query": "문장 성분의 종류",                          "answer_filename": "EBS 2026학년도 수능특강 국어영역 언어와매제.pdf",              "answer_page": 4 },
+  { "query": "서술어의 자릿수란?",                         "answer_filename": "EBS 2026학년도 수능특강 국어영역 언어와매제.pdf",             "answer_page": 4 },
+  { "query": "체언을 꾸며주는 문장 성분은?",                "answer_filename": "EBS 2026학년도 수능특강 국어영역 언어와매제.pdf",              "answer_page": 2 },
+  { "query": "높임 표현 중 간접높임이란 무엇인가?",          "answer_filename": "EBS 2026학년도 수능특강 국어영역 언어와매제.pdf",              "answer_page": 6 },
+  { "query": "근대 국어의 종성 표기와 거듭적기의 설명",       "answer_filename": "EBS 2026학년도 수능특강 국어영역 언어와매제.pdf",              "answer_page": 8 }
+]

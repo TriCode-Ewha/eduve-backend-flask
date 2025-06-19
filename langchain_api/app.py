@@ -3,6 +3,7 @@ import traceback
 from flask import Flask, jsonify, request
 import requests
 import openai
+import subprocess
 import os
 import uuid
 from dotenv import load_dotenv
@@ -67,7 +68,7 @@ def delete_all_data():
         user_id = request.args.get('user_id')
         if not user_id:
             return jsonify({"error": "Missing user_id parameter"}), 400
-        
+
         vectorstore = get_vectorstore(user_id)
         ids = vectorstore.get()['ids']
 
@@ -79,6 +80,12 @@ def delete_all_data():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+
+
+@app.route('/health')
+def health():
+    return "ok", 200
 
 
 
@@ -109,12 +116,12 @@ def call_clova_ocr(image_bytes):
         texts.append(field.get('inferText', ''))
 
         extracted_text = '\n'.join(texts)
-    
+
     # 여기서 텍스트 출력해보기
     print("=== OCR 추출된 텍스트 ===")
     print(extracted_text)
     print("=======================")
-    
+
     return extracted_text
 
 
@@ -131,17 +138,15 @@ def embedding():
         user_id = request.form.get("userId")
         if not user_id:
             return jsonify({"error": "userId is required"}), 400
-        
+
         # 파일이 없으면 400 ERROR
         if 'file' not in request.files:
             return jsonify({"error": "No file provided"}), 400
-        
+
         # 3. 새로 추가: 스프링부트에서 넘겨준 파일명(title) 받아오기
         title = request.form.get("title", "unknown_filename")
 
 
-
-        ######################### 수정한 부분 ########################
         # userId로 collectionname생성
         vectorstore = get_vectorstore(user_id)
 
@@ -163,60 +168,15 @@ def embedding():
         filepath = os.path.join(UPLOAD_DIR, filename)
         file.save(filepath)
 
-        '''
-        processed_path = None
-        text = None
-
-        
-        # 파일 변환 로직
-        if file_ext == 'pdf': # pdf 파일이면 그대로 진행행
-            processed_path = filepath
-        elif file_ext == 'docx': # docx
-            processed_path = filepath.replace('.docx', '.pdf')
-            os.makedirs(os.path.dirname(processed_path), exist_ok=True)
-            convert_docx_to_pdf(filepath, processed_path)
-        elif file_ext in ['jpg', 'jpeg', 'png']: # 이미지
-            text = extract_text_from_image(filepath)
-        elif file_ext == 'txt': # txt
-            with open(filepath, 'r', encoding='utf-8') as file:
-                text = file.read()  # 텍스트 파일 내용 읽기
-        else:
-            return jsonify({"error": "Unsupported file format"}), 400
-
-        
-
-        # PDF 로드 및 분할
-        docs = []
-        if processed_path:
-            loader = PyMuPDFLoader(processed_path)
-            docs = loader.load()
-            os.remove(processed_path)  # 변환된 PDF 삭제
-        elif text is not None:
-            docs = [{"page_content": text, "metadata": {"page": 1}}]  # OCR 결과 저장
-
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-        split_documents = []
-
-        for doc in docs:
-            page_content = doc.page_content
-            page_number = doc.metadata['page']  #페이지 넘버
-            # 페이지 내용을 청크 단위로 분할
-            split_page_content = text_splitter.split_text(page_content)
-            # 각 청크에 페이지 번호를 추가하고 메타데이터 생성
-            for chunk in split_page_content:
-                split_documents.append({
-                    "content": chunk.strip(),
-                    "metadata": {"page": page_number}
-                })
-        '''
-
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
         split_documents = []
 
         # DOCX는 PDF로 변환
         if file_ext == 'docx':
-            processed_path = filepath.replace('.docx', '.pdf')
-            convert_docx_pdf(filepath, processed_path)
+            processed_path = convert_docx_to_pdf(filepath)
+            print(filepath)
+            print(processed_path)
+
             ocr_results = extract_ocr_texts_by_page(processed_path)
             os.remove(processed_path)
 
@@ -265,7 +225,6 @@ def embedding():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
-1
 
 
 # 유사도 검색 API
@@ -284,7 +243,7 @@ def search():
 
         if not data:
             print("JSON 누락")
-            return {"error": "Invalid or missing JSON body"}, 400 
+            return {"error": "Invalid or missing JSON body"}, 400
         #data = request.json
         query = data.get("query", "")
         user_id = data.get("userId", "")
@@ -298,7 +257,7 @@ def search():
         if  not user_id:
             return jsonify({"error": "userId is required"}), 400
 
-        
+
         # 사용자 userId collection에서 검색
         print("사용자 벡터스토어 가져오는 중...")
         user_vectorstore = get_vectorstore(user_id)
@@ -398,12 +357,33 @@ def extract_main_topic(text):
 
 
 
+# docx -> pdf 변환 (Ubuntu)
+def convert_docx_to_pdf(docx_path):
+    # 저장할 디렉토리: ./data
+    output_dir = os.path.join(os.getcwd(), "data")
+    os.makedirs(output_dir, exist_ok=True)  # data 폴더 없으면 생성
 
+    # 실제 PDF 파일 경로 (파일 이름만 따서 .pdf로 변경)
+    filename = os.path.splitext(os.path.basename(docx_path))[0] + ".pdf"
+    pdf_path = os.path.join(output_dir, filename)
 
-# docx -> pdf 변환
-def convert_docx_to_pdf(docx_path, pdf_path):
-    doc = Document(docx_path)
-    doc.save(pdf_path)
+    # LibreOffice는 변환 후 현재 디렉토리에 PDF를 저장하므로, --outdir 지정
+    command = [
+        "libreoffice",
+        "--headless",
+        "--convert-to", "pdf",
+        "--outdir", output_dir,
+        docx_path
+    ]
+
+    subprocess.run(command, check=True)
+
+    # PDF가 제대로 생성됐는지 확인
+    if not os.path.exists(pdf_path):
+        raise FileNotFoundError(f"PDF not found at expected location: {pdf_path}")
+
+    return pdf_path
+
 
 
 # 이미지에서 텍스트 추출
@@ -432,7 +412,7 @@ def extract_ocr_texts_by_page(pdf_path):
                 ocr_text = call_clova_ocr(img_file.read()) or ""
                 page_texts.append({"page": i, "text": ocr_text})
         os.remove(tmp.name)
-    return page_texts      
+    return page_texts
 
 if __name__ == '__main__':
     os.makedirs("data", exist_ok=True)  # PDF 저장할 디렉토리 생성

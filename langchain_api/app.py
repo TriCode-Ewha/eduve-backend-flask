@@ -113,12 +113,12 @@ def call_clova_ocr(image_bytes):
 
         extracted_text = '\n'.join(texts)
     
-    '''
+
     # 여기서 텍스트 출력해보기
     print("=== OCR 추출된 텍스트 ===")
     print(extracted_text)
     print("=======================")
-    '''
+
     return extracted_text
 
 

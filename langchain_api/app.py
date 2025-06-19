@@ -1,8 +1,11 @@
+import re
+import shutil
 import fitz # PuMuPDF
 import traceback
 from flask import Flask, jsonify, request
 import requests
 import openai
+import subprocess
 import os
 import uuid
 from dotenv import load_dotenv
@@ -12,9 +15,9 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_community.vectorstores import Chroma
 from pdf2image import convert_from_path
-from docx2pdf import convert as convert_docx_pdf
 import tempfile
 import base64
+from typing import List, Dict
 
 from docx import Document
 from PIL import Image
@@ -35,11 +38,11 @@ def add_cors_headers(response):
 
 
 # OpenAI API 키 설정
-api_key = openai.api_key = ""
+api_key = openai.api_key = os.getenv("OPENAI_API_KEY")
 
 # Clova OCR API 키 설정
-clova_api_url = ""
-clova_api_secret = ""
+clova_api_url = os.getenv("CLOVA_API_URL")
+clova_api_secret = os.getenv("CLOVA_API_SECRET")
 
 #load_dotenv()  # .env 파일에서 환경 변수 로드
 
@@ -110,17 +113,18 @@ def call_clova_ocr(image_bytes):
 
         extracted_text = '\n'.join(texts)
     
+    '''
     # 여기서 텍스트 출력해보기
     print("=== OCR 추출된 텍스트 ===")
     print(extracted_text)
     print("=======================")
-    
+    '''
     return extracted_text
 
 
 
 
-# PDF 파일을 받아 임베딩하여 저장하는 API
+# 임베딩하여 저장하는 API
 @app.route('/embedding', methods=['POST', 'OPTIONS'])
 def embedding():
     if request.method == 'OPTIONS':
@@ -136,16 +140,11 @@ def embedding():
         if 'file' not in request.files:
             return jsonify({"error": "No file provided"}), 400
         
-        # 3. 새로 추가: 스프링부트에서 넘겨준 파일명(title) 받아오기
+        # 새로 추가: 스프링부트에서 넘겨준 파일명(title) 받아오기
         title = request.form.get("title", "unknown_filename")
 
-
-
-        ######################### 수정한 부분 ########################
         # userId로 collectionname생성
         vectorstore = get_vectorstore(user_id)
-
-
 
 
         # 고유한 파일명을 생성(uuid.uuid4().hex)하여 data/디렉토리에 저장
@@ -163,62 +162,25 @@ def embedding():
         filepath = os.path.join(UPLOAD_DIR, filename)
         file.save(filepath)
 
-        '''
-        processed_path = None
-        text = None
-
-        
-        # 파일 변환 로직
-        if file_ext == 'pdf': # pdf 파일이면 그대로 진행행
-            processed_path = filepath
-        elif file_ext == 'docx': # docx
-            processed_path = filepath.replace('.docx', '.pdf')
-            os.makedirs(os.path.dirname(processed_path), exist_ok=True)
-            convert_docx_to_pdf(filepath, processed_path)
-        elif file_ext in ['jpg', 'jpeg', 'png']: # 이미지
-            text = extract_text_from_image(filepath)
-        elif file_ext == 'txt': # txt
-            with open(filepath, 'r', encoding='utf-8') as file:
-                text = file.read()  # 텍스트 파일 내용 읽기
-        else:
-            return jsonify({"error": "Unsupported file format"}), 400
-
-        
-
-        # PDF 로드 및 분할
-        docs = []
-        if processed_path:
-            loader = PyMuPDFLoader(processed_path)
-            docs = loader.load()
-            os.remove(processed_path)  # 변환된 PDF 삭제
-        elif text is not None:
-            docs = [{"page_content": text, "metadata": {"page": 1}}]  # OCR 결과 저장
-
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
         split_documents = []
-
-        for doc in docs:
-            page_content = doc.page_content
-            page_number = doc.metadata['page']  #페이지 넘버
-            # 페이지 내용을 청크 단위로 분할
-            split_page_content = text_splitter.split_text(page_content)
-            # 각 청크에 페이지 번호를 추가하고 메타데이터 생성
-            for chunk in split_page_content:
-                split_documents.append({
-                    "content": chunk.strip(),
-                    "metadata": {"page": page_number}
-                })
+        
         '''
-
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
-        split_documents = []
-
         # DOCX는 PDF로 변환
         if file_ext == 'docx':
-            processed_path = filepath.replace('.docx', '.pdf')
-            convert_docx_pdf(filepath, processed_path)
+            processed_path = convert_docx_to_pdf(filepath)
+            print(filepath)
+            print(processed_path)
+
             ocr_results = extract_ocr_texts_by_page(processed_path)
             os.remove(processed_path)
+        '''
+        ocr_results = []
+
+        # DOCX를 마크다운으로 변환
+        if file_ext == 'docx':
+            ocr_results = convert_docx_with_ocr_to_per_page_markdown(filepath)
+
 
         elif file_ext == 'pdf':
             ocr_results = extract_ocr_texts_by_page(filepath)
@@ -231,6 +193,10 @@ def embedding():
             with open(filepath, 'r', encoding='utf-8') as f:
                 text = f.read()
                 ocr_results = [{"page": 1, "text": text}]
+                # 여기서 텍스트 출력해보기
+                print("=== OCR 추출된 텍스트 ===")
+                print(text)
+                print("=======================")
 
         else:
             return jsonify({"error": "Unsupported file format"}), 400
@@ -259,13 +225,20 @@ def embedding():
         if os.path.exists(filepath):
             os.remove(filepath)
 
-        return jsonify({"message": "Document successfully embedded with OCR"})
+        return jsonify({"message": "Document successfully embedded with OCR",
+                        "text": "".join([page["text"] for page in ocr_results]) if file_ext == "txt" else None})
 
     except Exception as e:
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+    
 
-1
+
+
+
+
+
+
 
 
 # 유사도 검색 API
@@ -399,12 +372,69 @@ def extract_main_topic(text):
 
 
 
-
+'''
 # docx -> pdf 변환
 def convert_docx_to_pdf(docx_path, pdf_path):
     doc = Document(docx_path)
     doc.save(pdf_path)
+'''
 
+# 내꺼
+# docx -> pdf 변환 (Ubuntu)
+def convert_docx_to_pdf(docx_path):
+    # 저장할 디렉토리: ./data
+    output_dir = os.path.join(os.getcwd(), "data")
+    os.makedirs(output_dir, exist_ok=True)  # data 폴더 없으면 생성
+
+    # 실제 PDF 파일 경로 (파일 이름만 따서 .pdf로 변경)
+    filename = os.path.splitext(os.path.basename(docx_path))[0] + ".pdf"
+    pdf_path = os.path.join(output_dir, filename)
+
+    # LibreOffice는 변환 후 현재 디렉토리에 PDF를 저장하므로, --outdir 지정
+    command = [
+        r"C:\Program Files\LibreOffice\program\soffice.exe",
+        "--headless",
+        "--convert-to", "pdf",
+        "--outdir", output_dir,
+        docx_path
+    ]
+
+    subprocess.run(command, check=True)
+
+    # PDF가 제대로 생성됐는지 확인
+    if not os.path.exists(pdf_path):
+        raise FileNotFoundError(f"PDF not found at expected location: {pdf_path}")
+
+    return pdf_path
+
+'''
+# docx -> pdf 변환 (Ubuntu)
+def convert_docx_to_pdf(docx_path):
+    # 저장할 디렉토리: ./data
+    output_dir = os.path.join(os.getcwd(), "data")
+    os.makedirs(output_dir, exist_ok=True)  # data 폴더 없으면 생성
+
+    # 실제 PDF 파일 경로 (파일 이름만 따서 .pdf로 변경)
+    filename = os.path.splitext(os.path.basename(docx_path))[0] + ".pdf"
+    pdf_path = os.path.join(output_dir, filename)
+
+    # LibreOffice는 변환 후 현재 디렉토리에 PDF를 저장하므로, --outdir 지정
+    command = [
+        "libreoffice",
+        "--headless",
+        "--convert-to", "pdf",
+        "--outdir", output_dir,
+        docx_path
+    ]
+
+    subprocess.run(command, check=True)
+
+    # PDF가 제대로 생성됐는지 확인
+    if not os.path.exists(pdf_path):
+        raise FileNotFoundError(f"PDF not found at expected location: {pdf_path}")
+
+    return pdf_path
+'''
 
 # 이미지에서 텍스트 추출
 def extract_text_from_image(image_path):
@@ -438,3 +468,87 @@ if __name__ == '__main__':
     os.makedirs("data", exist_ok=True)  # PDF 저장할 디렉토리 생성
     os.makedirs("chroma_db", exist_ok=True)  # Chroma DB 저장할 디렉토리 생성
     app.run(host='0.0.0.0', port=5000)
+
+
+
+
+
+
+
+# docx를 마크다운으로 변환 + 이미지가 있으면 OCR해서 텍스트 추출
+def convert_docx_with_ocr_to_per_page_markdown(docx_path: str) -> List[Dict]:
+    """
+    DOCX를 PDF로 변환해 페이지 수를 확인한 뒤, pandoc으로 Markdown 변환
+    이미지가 포함된 마크다운 내 이미지 링크를 OCR 텍스트로 대체
+    전체 텍스트를 페이지 수에 맞게 분할
+    반환: [{"page": int, "text": str}, ...]
+    """
+    # 1. DOCX → PDF → 페이지 수 확인
+    pdf_path = convert_docx_to_pdf(docx_path)
+    pdf = fitz.open(pdf_path)
+    num_pages = len(pdf)
+    pdf.close()
+    os.remove(pdf_path)
+
+    # 2. DOCX → Markdown + 이미지 추출
+    with tempfile.TemporaryDirectory() as tmpdir:
+        md_path = os.path.join(tmpdir, "converted.md")
+        media_dir = os.path.join(tmpdir, "media")
+
+        subprocess.run([
+            "pandoc", docx_path, "-o", md_path,
+            f"--extract-media={media_dir}"
+        ], check=True)
+
+        # 3. 마크다운 내 이미지 링크 → OCR 텍스트로 대체
+        with open(md_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        def replace_image_with_ocr(match):
+            raw_path = match.group(1)
+
+            # 경로 정리: 백슬래시 → 슬래시, "file://" 제거, 따옴표 제거
+            cleaned_path = raw_path.replace("\\", "/").replace("file://", "").strip('"')
+
+            # 절대 경로 또는 상대 경로 처리
+            img_path = cleaned_path
+            if not os.path.isabs(img_path):
+                img_path = os.path.join(tmpdir, cleaned_path)
+
+            try:
+                with open(img_path, "rb") as img_file:
+                    img_bytes = img_file.read()
+                ocr_text = call_clova_ocr(img_bytes).strip()
+                return ocr_text if ocr_text else "[이미지 텍스트 없음]"
+            except Exception as e:
+                print(f"OCR 실패: {img_path} / {e}")
+                return "[OCR 실패]"
+
+        # 정규식: 마크다운 내 이미지 링크 모두 매치
+        content = re.sub(r'!\[.*?\]\((.*?)\)', replace_image_with_ocr, content)
+
+        # 4. 페이지 수에 맞춰 텍스트 분할
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=500,
+            chunk_overlap=50,
+            separators=["\n\n", "\n", ".", " ", ""]
+        )
+
+        chunks = text_splitter.split_text(content)
+
+        # 페이지 수만큼 균등하게 나누기
+        chunk_per_page = max(1, len(chunks) // num_pages)
+        page_results = []
+
+        for i in range(num_pages):
+            start = i * chunk_per_page
+            end = (i + 1) * chunk_per_page if i < num_pages - 1 else len(chunks)
+            page_text = "\n".join(chunks[start:end]).strip()
+            page_results.append({
+                "page": i + 1,
+                "text": page_text
+            })
+
+        print(page_results)
+
+    return page_results

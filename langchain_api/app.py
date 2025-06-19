@@ -225,7 +225,8 @@ def embedding():
         if os.path.exists(filepath):
             os.remove(filepath)
 
-        return jsonify({"message": "Document successfully embedded with OCR"})
+        return jsonify({"message": "Document successfully embedded with OCR",
+                        "text": "".join([page["text"] for page in ocr_results]) if file_ext == "txt" else None})
 
     except Exception as e:
         traceback.print_exc()
@@ -547,5 +548,7 @@ def convert_docx_with_ocr_to_per_page_markdown(docx_path: str) -> List[Dict]:
                 "page": i + 1,
                 "text": page_text
             })
+
+        print(page_results)
 
     return page_results
